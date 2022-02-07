@@ -1,0 +1,889 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <style>
+
+
+      .container {
+	  position: relative;
+      }
+      
+      body {
+	  background: yellow;
+	  margin: 0;
+      }
+
+      canvas {
+	  width: 100%;
+	  height: auto;
+	  display: block;
+	  background:  #ffddd0;
+      }
+
+      a {
+	  background: #69c;
+	  color: #fff;
+	  padding: 1px 1px;
+	  border-radius: 5px;
+      }
+
+      button {
+	  background: #69c;
+	  color: #fff;
+	  padding: 1px 1px;
+	  border-radius: 5px;
+      }
+
+      #overlay {
+	  background-color: rgba(50, 50, 50, 0.2);
+	  color:  #999;
+	  width: 100%;
+	  display: inline;
+	  position: absolute;
+	  z-index:100;
+	  pointer-events: none;
+      }
+
+      #overlay1 {
+	  position: absolute;
+	  width: 9%;
+	  display: block;
+	  margin-left: auto;
+	  margin-right: auto;
+	  left: 5%;
+	  top: 5%;
+	  background-color: rgba(0, 0, 0, 0.2);
+	  border-radius: 5px;
+	  text-align: left;
+	  font-size: 100%;
+	  outline: 2px solid white;
+	  color: gray;
+	  font-family: monospace;
+	  padding: 0em;
+	  z-index:5;
+      }
+
+      .range-wrap {
+	  position: relative;
+	  margin: 0 auto 3rem;
+      }
+      .range {
+	  width: 100%;
+      }
+      .bubble {
+	  background: #69c;
+	  color: white;
+	  padding: 4px 12px;
+	  position: absolute;
+	  border-radius: 4px;
+	  left: 50%;
+	  transform: translateX(-50%);
+      }
+      .bubble::after {
+	  content: "";
+	  position: absolute;
+	  width: 2px;
+	  height: 2px;
+	  background: #69c;
+	  top: -1px;
+	  left: 50%;
+      }
+
+
+    </style>
+
+    <title>HAVerrill cellular automata</title>
+  </head>
+  <body>
+    <div class="container">
+      <div id = "overlay1">
+	<svg version="1.1" id="mymenuicon"
+	     xmlns="http://www.w3.org/2000/svg"
+	     xmlns:xlink="http://www.w3.org/1999/xlink"
+	     x="0px" y="0px"	 width="100%" 
+	     viewBox="0 0 50 50" style="background: #032963"
+	     enable-background="new 0 0 50 50"
+	     xml:space="preserve">
+
+	  <path onclick=hide() id="waterbomb1solid" d="
+						       M 10 12 l 30  0 
+						       M 10 25 l 30  0
+						       M 10 38 l 30  0
+						       "
+		stroke-width="10" stroke-linecap="round" stroke = "#2cbcb5"/>
+	</svg>
+	
+	
+	<button onclick=restart() id="reload">restart</button>
+	<a href="about.html" id="about">about</a>
+	<a href="" id="link">png</a>
+	<button onclick=changeversion() id="version">V2</button>
+	<button onclick=gridonoff() id="grid">grid</button>		
+	<div id="styleA" class="container">  
+	  <div class="range-wrap">
+	    <input type="range" class="range" min="0" max="49" value="0">
+	    <output id = "style" class="bubble"></output>
+	  </div>
+
+	  <div class="range-wrap">
+	    <input type="range" class="range" min="0" max="999" value="500">
+	    <output id = "life" class="bubble"></output>
+	  </div>
+	</div>
+
+
+
+      </div>
+      <canvas id="c"></canvas>
+    </div>
+
+
+    <script>
+      //https://css-tricks.com/value-bubbles-for-range-inputs/
+      const allRanges = document.querySelectorAll(".range-wrap");
+      allRanges.forEach(wrap => {
+	  const range = wrap.querySelector(".range");
+	  const bubble = wrap.querySelector(".bubble");
+	  const name = bubble.id
+
+	  range.addEventListener("input", () => {
+	      setBubble(range, bubble, name);
+	  });
+	  setBubble(range, bubble, name);
+      });
+
+      function setBubble(range, bubble, name) {
+	  const val = range.value;
+	  const min = range.min ? range.min : 0;
+	  const max = range.max ? range.max : 100;
+	  const newVal = Number(((val - min) * 100) / (max - min));
+	  bubble.innerHTML = name+": " +val/10;
+	  // https://css-tricks.com/value-bubbles-for-range-inputs/
+	  // Sorta magic numbers based on size of the native UI thumb
+	  bubble.style.left = `calc(${newVal}% + (${8 - newVal * 0.15}px))`;
+	  // above was bubble, can do rest here too
+	  //      console.log(name+val)
+	  if (name=="style"){style = val/10;}
+	  else {param = val/10}//{Math.min(val/10,99.9999)}
+	  
+      }
+    </script>	
+
+    
+    <script  id="vertex-shader-2d" type="notjs">
+      precision mediump float; 
+      attribute vec2 a_position;
+      uniform vec2 u_resolution;
+      void main() {
+	  //   gl_Position = vec4(a_position/u_resolution*u_resolution.x,0.,1.);
+          gl_Position = vec4(a_position,0.,1.);
+	  // gl_Position = vec4(a_position/2. + vec2(0.1,-0.25),0.,1.);            
+      }
+
+    </script>
+
+    <script  id="fragment-shader-2d" type="notjs">
+      precision mediump float;
+      uniform float t;
+      uniform float u_style;
+      uniform vec4 u_color;
+      uniform mat4 u_colorMat;
+      uniform float u_grid;
+      uniform vec2 u_resolution;
+      uniform vec4 u_basepoint;
+      float u_live = 0.55;
+      
+
+
+      float PI = 3.14159;
+
+
+      float lam1 = 170.*pow(1.5/6.,0.5);
+      float lam2 = 170.*pow(1.5/2.,0.5);
+      vec3 vc1 = vec3(170.,170.,170.);
+      vec3 vc2 = vec3(1.,1.,-2.);
+      vec3 vc3=vec3(1.,-1.,0.);
+
+
+      vec3 nicecol(float r){
+	  float temp1 = vc1[0] + cos(r*10.*PI)*lam1*vc2[0] + sin(r*10.*PI)*lam2*vc3[0];
+	  float temp2 =  vc1[1] + cos(r*10.*PI)*lam1*vc2[1] + sin(r*10.*PI)*lam2*vc3[1];
+	  float temp3 = vc1[2] + cos(r*10.*PI)*lam1*vc2[2] + sin(r*10.*PI)*lam2*vc3[2];
+	  return vec3(temp1,temp2,temp3)/255.;
+      }
+
+
+      // as an alternative to if:
+      float iseq(float a,float b){
+	  return 1.-abs(sign(a-b));
+      }
+
+      // as an alternative to if:
+      float isgt(float a,float b){
+	  return max(sign(a-b),0.);
+      }  
+
+
+      // going to mix together the four colours at corners of square:
+      // this is copied from noise function (from book on shaders)
+      float mix(vec2 p, vec4 cc){
+	  float a = cc.x;
+	  float b = cc.y;
+	  float c = cc.z;
+	  float d = cc.w;
+	  // Smooth Interpolation
+	  vec2 u = smoothstep(0.,1.,p);
+	  // Mix 4 coorners percentages
+	  return mix(a, b, u.x) +
+              (c - a)* u.y * (1.0 - u.x) +
+              (d - b) * u.x * u.y;
+      }      
+
+      float zig2(float x, float N){
+	  if (floor(mod(x,N*2.))==0.){return mod(x,N);}
+	  else {return N-mod(x,N);}
+      }
+
+
+      vec2 zigv(vec2 v, float N){
+	  return vec2(zig2(v.x,N),zig2(v.y,N));
+      }
+      
+      
+      float randomC(in vec2 st) {
+	  return mod(sin(dot(st.xy,
+			     vec2(12.,78.)))
+		     * 758.,1.);
+      }
+
+      // returns: color as number, actually height;
+      // face = -1,0,1,2,3, telling which face or whether side(-1)
+      // midpoint of the face were on
+      vec4 mix49(vec2 p, vec4 cc){
+	  // first coord will be colour;
+	  // second will be whether were on the side or not;
+	  // side will return 0; otherwise 1
+	  float side = 1.;
+	  // assume p in range 0 to 1
+	  float dc;
+	  // do top right corner first
+	  float wi = 0.04; // width of outline of squares
+	  float de = 1.; // depth of tiles
+	  // this should be between 0 and 1; if its more than one,
+	  // it just increases speed of movemenet
+	  // negative gives indentation effect
+	  float fac = 4.; // for shading; dont undersatnd this
+	  float u4 = 0.5 + (1.-cc.x)*de/2.-wi*fac;
+	  float u3 = 0.5 + (1.-cc.y)*de/2.-wi*fac;
+	  float u2 = 0.5 + (1.-cc.z)*de/2.-wi*fac;      
+	  // lets note midpoints of the squares, and which face we are on
+	  // -1 means on side, not on face      
+	  float face = -1.;
+	  vec2 mid;
+	  // colour of edges:
+	  float edge = 1.;
+	  dc = edge;
+	  // faces in order
+	  // 2 3
+	  // 0 1      
+	  if (p.x > 0.5+wi + (1.-cc.w)*de/2. &&
+	      p.y > 0.5+wi + (1.-cc.w)*de/2.){dc = cc.w;
+					      face = 3.;
+					      mid = vec2(0.5+wi + (1.-cc.w)*de/2.,
+							 0.5+wi + (1.-cc.w)*de/2.)
+					      + 0.5;
+					     }
+	  else if (p.x > 0.5 + (1.-cc.w)*de/2. &&
+		   p.y > 0.5 + (1.-cc.w)*de/2.){dc = edge;}
+	  else if (p.x>0.5 +
+		   min(min((1.-cc.x)*de/2.,(1.-cc.y)*de/2.),(1.-cc.z)*de/2.)
+		   && abs(p.x-p.y)<wi/2.){dc-0.;}
+	  // right      
+	  else if (p.x > 0.5+wi + (1.-cc.y)*de/2. &&
+		   p.y < 0.5-wi + (1.-cc.y)*de/2.){dc = cc.y;
+						   face = 1.;
+						   mid = vec2( 0.5+wi + (1.-cc.y)*de/2., 0.5-wi + (1.-cc.y)*de/2.) + vec2(0.5,-0.5);
+						  }
+	  else if (p.x > 0.5 + (1.-cc.y)*de/2. &&
+		   p.y < 0.5 + (1.-cc.y)*de/2.){dc = edge;}
+	  else if (p.x > 0.5 + (1.-cc.y)*de/2. &&
+		   p.y >= 0.5 + (1.-cc.y)*de/2.&& p.y<p.x)
+	  {dc = (u3 + 1. - p.y)*cc.y; side = 0.;}
+	  //      {dc = 1.-(p.y-de)*de/2.;}
+          // top left
+	  else if (p.y > 0.5+wi + (1.-cc.z)*de/2. &&
+		   p.x < 0.5-wi + (1.-cc.z)*de/2.){dc =  cc.z;
+						   face = 2.;
+						   mid = vec2(0.5-wi + (1.-cc.z)*de/2., 0.5+wi + (1.-cc.z)*de/2.) + vec2(-0.5,0.5);
+						  }
+	  else if (p.y > 0.5 + (1.-cc.z)*de/2. &&
+		   p.x < 0.5 + (1.-cc.z)*de/2.){dc =  edge;}
+	  else if (p.y > 0.5 + (1.-cc.z)*de/2. &&
+		   p.x >= 0.5 + (1.-cc.z)*de/2.&& p.y>p.x)
+	  {dc = (u2 + 1. - p.x)*cc.z; side = 0.;}
+	  //{dc = 1.-(p.x-de)*de/2.;}
+	  // bottom left
+	  else if (p.y < 0.5-wi + (1.-cc.x)*de/2. &&
+		   p.x < 0.5-wi + (1.-cc.x)*de/2.){dc =  cc.x;
+						   face = 0.;
+						   mid = vec2(0.5-wi + (1.-cc.x)*de/2., 0.5-wi + (1.-cc.x)*de/2.) - vec2(0.5);}
+
+	  else if (p.y < 0.5 + (1.-cc.x)*de/2. &&
+		   p.x < 0.5 + (1.-cc.x)*de/2.){dc =  edge;}
+	  else if (p.y >= 0.5 + (1.-cc.x)*de/2. && abs(p.x-p.y)<wi/2.) {dc=edge;}
+	  else if (p.y >= 0.5 + (1.-cc.x)*de/2. &&	       
+		   p.y > p.x ){dc = (u4 + 1. - p.y)*cc.x; side = 0.;}
+	  else if (p.x >= 0.5 + (1.-cc.x)*de/2. &&	       
+		   p.y < p.x ){dc = (u4 + 1. - p.x)*cc.x; side = 0.;}
+
+	  
+	  return vec4(dc,face,mid);
+      }
+      
+
+      vec3 style49(vec2 loc){
+	  vec3 destColor;
+          vec4 mm = mix49(loc,u_color);
+	  if (mm.y==-1.){
+	      vec3 gold = vec3(1.,.782,.114);
+	      destColor = vec3(mm.x)*gold;}
+	  else
+	  {
+	      if (mm.x> u_live){	      
+		  vec2 md = vec2(mod(mm.y,2.),floor(mm.y/2.));
+		  vec3 blue = nicecol(dot(10.*u_basepoint.xy+md,vec2(1.,1.))/100.);
+		  destColor = vec3(mm.x)*blue*.9;}
+
+	      else
+	      {vec3 orange = vec3(.954,.458,0.);
+	       destColor = vec3(mm.x)*orange*2.;}
+	  }
+	  return destColor;
+      }
+      
+
+      vec3 style74(vec2 loc, float option){
+	  vec3 destColor;
+
+	  float l0 = length(loc)/u_colorMat[1][1];
+	  float M = u_basepoint.z;
+	  float ll=1000.;
+	  float l1 =0.;
+	  vec2 md = vec2(0.);
+
+          
+	  for (int i=0;i<4;i++){
+	      for (int j=0;j<4;j++){
+		  float ii = float(i);	      
+		  float jj = float(j);
+		  vec2 v = vec2(jj-1.,ii-1.);
+		  l0 =  length(loc-v)/u_colorMat[i][j];
+		  ll = min(ll,l0);
+		  if (l0 ==ll){md = v;}
+	      }
+	  }
+
+	  vec2 loc2 = loc - md;
+	  destColor = vec3(0.3);
+	  
+	  if (ll<2.7){
+	      destColor = max(1.-vec3(ll)/3.,0.3);
+	  }
+	  
+	  if (option==1.){// note that the basepoints had been
+	      // multipled by M=u_basepoint.z before being passed
+	      // this was because of using this coordinate for pixel dimensions
+	      // I have added M to Fx and Fy to avoid getting a problem
+	      // when the input to randomC is negative
+	      float Fx = (u_basepoint.xy/M+md).x+M;
+              float Fy = (u_basepoint.xy/M+md).y+M+100.;
+	      vec2 F = vec2(Fx,Fy);
+	      destColor =max(1.-vec3(ll)/2.,0.)*		  
+		  nicecol(randomC(F)/10.)/1.5;
+	  }
+
+	  return destColor;
+      }
+
+      vec3 col1(vec2 loc){
+	  return max(vec3(0.),vec3(1.-1.75*length(loc-0.5)/(0.01+u_color.x)));      
+      }
+
+
+      vec3 col8(vec2 loc){
+	  return vec3(zig2(mix(loc,u_color)*2.,1.),0.,0.);
+      }
+
+      vec3 col13(vec2 loc,vec2 p){
+	  return vec3(zigv(p*10.+ mix(loc,u_color),1.),1.);
+      }
+
+
+      vec3 colourchoice(float fu, vec2 loc, vec2 p){
+	  return
+      	  iseq(fu,0.)*col1(loc)
+              +iseq(fu,1.)*col8(loc)
+              +iseq(fu,2.)*col13(loc,p)  
+    	      +iseq(fu,3.)*style49(loc)
+	      +iseq(fu,4.)*style74(loc,0.)
+	      +iseq(fu,5.)*style74(loc,1.);
+      }
+
+      
+      void main() {
+	  vec2  p = gl_FragCoord.xy/u_resolution.x - 0.5*u_resolution/u_resolution.x;
+	  vec3 destColor;
+	  vec2 cent = u_basepoint.xy/2.+0.025;
+	  // loc is a coordinate that starts with 0 in bottom left and
+	  // goes to 1 in top right, both coords.
+	  vec2 loc = (p - cent)/0.05 + vec2(0.5);
+
+	  float fu = floor(u_style);
+	  
+	  vec3 destColor1 = colourchoice(fu,loc,p);
+	  vec3 destColor2 = colourchoice(fu+1.,loc,p);
+	  destColor = mix(destColor1,destColor2,fract(u_style));
+	  
+	  // draw a grid:
+	  float grid = max(0.,(sign(min(loc.x,loc.y)-0.05)));
+	  destColor =
+	      destColor*(1.-u_grid) +
+	      (destColor*grid+(1.-grid)*vec3(1.,0.,0.))*u_grid;
+	  
+
+
+	  
+	  gl_FragColor =vec4(destColor, 1.);          
+      }
+
+    </script>
+
+    <script>
+      // this section of code is taken from: WebGlfundamentals.org
+      /*
+       * Copyright 2012, Gregg Tavares.
+       * All rights reserved.
+       *
+       * Redistribution and use in source and binary forms, with or without
+       * modification, are permitted provided that the following conditions are
+       * met:
+       *
+       *     * Redistributions of source code must retain the above copyright
+       * notice, this list of conditions and the following disclaimer.
+       *     * Redistributions in binary form must reproduce the above
+       * copyright notice, this list of conditions and the following disclaimer
+       * in the documentation and/or other materials provided with the
+       * distribution.
+       *     * Neither the name of Gregg Tavares. nor the names of his
+       * contributors may be used to endorse or promote products derived from
+       * this software without specific prior written permission.
+       *
+       * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+       * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+       * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+       * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+       * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+       * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+       * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+       * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+       * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+       * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+       * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+       */
+      
+      /**
+       * Resize a canvas to match the size its displayed.
+       * @param {HTMLCanvasElement} canvas The canvas to resize.
+       * @param {number} [multiplier] amount to multiply by.
+       *    Pass in window.devicePixelRatio for native pixels.
+       * @return {boolean} true if the canvas was resized.
+       * @memberOf module:webgl-utils
+       */
+      function resizeCanvasToDisplaySize(canvas, multiplier) {
+	  multiplier = multiplier || 1;
+	  const width  = canvas.clientWidth  * multiplier | 0;
+	  const height = canvas.clientHeight * multiplier | 0;
+	  if (canvas.width !== width ||  canvas.height !== height) {
+	      canvas.width  = width;
+	      canvas.height = height;
+	      return true;
+	  }
+	  return false;
+      }
+    </script>
+
+    <script>
+      /* eslint no-console:0 consistent-return:0 */
+      "use strict";
+      var style = 0
+      var gridflag = 0; // whether or not to show a grid
+      var param = 55
+      var version =1 // whether or not we change life values all at the same time
+
+      function changeversion(){
+	  version = 1-version
+	  document.getElementById("version").innerHTML = "V"+(version+1)
+      }
+
+      function gridonoff(){
+	  gridflag = 1-gridflag
+      }
+      
+      var canvas;
+      canvas = document.querySelector("#c");
+      var t = 0
+      var timeUniformLocation
+      canvas.width = 600;
+      // I am going to make screen 20 units wide and
+      // however many possible units tall.
+      // so a unit is 600/20=30 wide
+      // and floor(h/(w/20)) of these fit on the screen
+      var w = window.innerWidth;
+      var h = window.innerHeight;
+
+      var COLS=20
+      var ROWS=Math.ceil(COLS*h/w)
+      var ROWS=2*Math.ceil(ROWS/2)// make M even
+      canvas.height =600/COLS*ROWS;// 600;  
+
+      //  console.log(w,h,ROWS,COLS)
+
+      function createShader(gl, type, source) {
+	  var shader = gl.createShader(type);
+	  gl.shaderSource(shader, source);
+	  gl.compileShader(shader);
+	  var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+	  if (success) {
+	      return shader;
+	  }
+
+	  //  console.log(gl.getShaderInfoLog(shader));
+	  gl.deleteShader(shader);
+      }
+
+      var program
+      function createProgram(gl, vertexShader, fragmentShader) {
+	  program = gl.createProgram();
+	  gl.attachShader(program, vertexShader);
+	  gl.attachShader(program, fragmentShader);
+	  gl.linkProgram(program);
+	  var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+	  if (success) {
+	      return program;  }
+	  //  console.log(gl.getProgramInfoLog(program));
+	  gl.deleteProgram(program);
+      }
+
+      // lets make this a 20x20 array:
+      var cols = new Array;
+      function restart(){
+	  //      console.log("here")
+	  cols = new Array;
+	  for (var i=0;i<COLS;i++){
+	      var temp = new Array	
+	      temp =  [0]
+	      for (var j=0;j<ROWS;j++){
+		  temp.push(2.*Math.random())// include *2 here, since otherwise
+		  // with life threshold 1, everything has value less than 1,
+		  // so everything always dies.
+	      }
+	      cols.push(temp)
+	  }
+      }
+      restart()
+
+      // for version 1 game use:
+      var colsIntermediate = new Array;
+      for (var i=0;i<COLS;i++){
+	  var temp = new Array	
+	  temp = [0]
+          for (var j=0;j<ROWS;j++){
+              temp.push(0)
+	  }
+	  colsIntermediate.push(temp)
+      }
+      // different copy for working with;
+      // dont think we actually really need it the same to start with.
+
+      var gl = canvas.getContext("webgl", {preserveDrawingBuffer: true});
+      var timeUniformLocation;// = gl.getUniformLocation(program, "t");
+      
+      var vertexShaderSource = document.querySelector("#vertex-shader-2d").text;
+      var fragmentShaderSource = document.querySelector("#fragment-shader-2d").text;
+      var vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+      var fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+      var program = createProgram(gl, vertexShader, fragmentShader);
+      var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+      var resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution");
+
+      var colorUniformLocation = gl.getUniformLocation(program, "u_color");
+      var colorMatUniformLocation = gl.getUniformLocation(program, "u_colorMat");  
+      var styleUniformLocation = gl.getUniformLocation(program, "u_style");  
+      var gridUniformLocation = gl.getUniformLocation(program, "u_grid");  
+      var baseUniformLocation = gl.getUniformLocation(program, "u_basepoint");
+      var timeUniformLocation = gl.getUniformLocation(program, "t");
+
+      // Create a buffer and put three 2d clip space points in it
+      var positionBuffer = gl.createBuffer();
+      // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+      // code above this line is initialization code.      
+      // I took the above and made it global from original copied file
+      // code below this line is rendering code.
+      resizeCanvasToDisplaySize(gl.canvas);
+
+      // Tell WebGL how to convert from clip space to pixels
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+      // Clear the canvas
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      // Tell it to use our program (pair of shaders)
+      gl.useProgram(program);
+
+      // Turn on the attribute
+      gl.enableVertexAttribArray(positionAttributeLocation);
+
+      // Bind the position buffer.
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+      // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+      var size = 2;          // 2 components per iteration
+      var type = gl.FLOAT;   // the data is 32bit floats
+      var normalize = false; // dont normalize the data
+      var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+      var offset = 0;        // start at the beginning of the buffer
+      gl.vertexAttribPointer(
+	  positionAttributeLocation, size, type, normalize, stride, offset);
+
+      // note, have to have the use program bit before this
+      // set the resolution
+      gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
+
+
+      // look at the neighbours of (i,j) in cols
+      // if two or more are alive, take the average of the highest 3
+      // 
+      function checklive(i,j){
+	  //      var live = 0.9;
+          var live = param/100;
+	  // live case:
+	  
+	  if (cols[i][j]>live){
+	      // count live nieghbours:
+	      var ne=0;
+	      var av=0;
+	      for (var k=-1;k<=1;k++){
+		  for (var l=-1;l<=1;l++){
+		      var ix = i+k;
+		      if (ix>=COLS){ix=0}
+		      if (ix<0){ix=COLS-1}
+		      var jx = j+l;
+		      if (jx>=ROWS){jx=0}
+		      if (jx<0){jx=ROWS-1}	      
+                      if (!(i==ix && j==jx) && cols[ix][jx]>live){
+			  ne +=1;
+			  av +=cols[ix][jx]		  
+		      }
+		  }
+	      }
+	      if (version==1){
+		  if (ne>=2 && ne<=3){cols[i][j] += 0.01}
+		  else {cols[i][j] -=0.01}
+	      }
+	      else {
+		  if (ne>=2 && ne<=3){colsIntermediate[i][j] =cols[i][j]+ 0.01}
+		  else {colsIntermediate[i][j] =cols[i][j]-0.01}
+	      }
+	  }
+	  else {
+	      var ne=0;
+	      var av=0;
+	      for (var k=-1;k<=1;k++){
+		  for (var l=-1;l<=1;l++){
+		      var ix = i+k;
+		      if (ix>=COLS){ix=0}
+		      if (ix<0){ix=COLS-1}
+		      var jx = j+l;
+		      if (jx>=ROWS){jx=0}
+		      if (jx<0){jx=ROWS-1}	      
+                      if ( !(i==ix && j==jx) && cols[ix][jx]>live){
+			  ne +=1;
+			  //		      av +=cols[ix][jx]		  
+		      }
+		  }
+	      }
+	      if (version==1){
+		  if (ne==3){cols[i][j] += 0.01}
+		  else {cols[i][j] -= 0.01}
+	      }
+	      else {
+	      	  if (ne==3){colsIntermediate[i][j] =cols[i][j]+  0.01}
+		  else {colsIntermediate[i][j] =cols[i][j]- 0.01}
+	      }
+	  }
+	  if (version==1){
+	      return Math.min(Math.max(cols[i][j],0.),1.);
+	  }
+	  else {
+	      return Math.min(Math.max(colsIntermediate[i][j],0.),1.);
+	  }
+      }
+
+      function reduce(val,Lim){
+	  if (val>=Lim){return 0}
+	  else if (val<0){return Lim-1}
+          else {return val}
+      }
+      
+      function main() {
+	  if (!gl) {
+	      return;
+	  }
+	  // M determines the spacing between the tiles;
+	  // bigger M, more space
+	  var M = 0.1;// COLS/2./10.
+	  // variable for conway:
+	  var live = 0.5;
+	  // changed from time to requestAnimationFrame
+	  // for better working on mobile devices
+	  requestAnimationFrame(drawScene);
+	  var time = 1;
+	  
+	  // Draw the scene.
+	  function drawScene(time) {
+	      time *= 0.0003;
+
+	      if (version==0){
+		  for (var i=0;i<COLS;i++){
+		      for (var j=0;j<ROWS;j++){
+			  colsIntermediate[i][j] = checklive(i,j)
+		      }
+		  }
+		  
+		  for (var i=0;i<COLS;i++){
+		      for (var j=0;j<ROWS;j++){		
+	    		  cols[i][j] = 1*colsIntermediate[i][j]
+		      }
+		  }
+	      }
+	      
+	      for (var ii = -COLS/2; ii < COLS/2; ++ii) {
+		  for (var jj = -ROWS/2; jj < ROWS/2; ++jj) {
+		      var iii = ii+ COLS/2; var jjj = jj + ROWS/2;
+		      // try conway variation:
+		      // does it have three live neighbours?
+		      if (version==1){ // increment
+			  var a = checklive(iii,jjj);
+			  cols[iii][jjj]= checklive(iii,jjj);
+		      }
+		      var x1 = ii*M;
+		      var y1 = jj*M;
+		      setRectangle(gl, x1, y1*COLS/ROWS, M, M*COLS/ROWS);
+		      var ix = ii+COLS/2+1;
+		      if (ix>=COLS){ix=0}
+		      if (ix<0){ix=COLS-1}
+		      var jx = jj+ROWS/2+1;
+		      if (jx>=ROWS){jx=0}
+		      if (jx<0){jx=ROWS-1}	      	       
+		      gl.uniform4f(colorUniformLocation,
+				   cols[ii+COLS/2][jj+ROWS/2],cols[ix][jj+ROWS/2],
+				   cols[ii+COLS/2][jx], cols[ix][jx] );
+
+		      var ix0 = ii + COLS/2
+		      var jx0 = jj + ROWS/2
+		      var ix = reduce(ii+COLS/2+1,COLS)
+		      var jx = reduce(jj+ROWS/2+1,ROWS)
+		      // look over squares further away:
+		      var ixp = reduce(ix+1,COLS)
+		      var jxp = reduce(jx+1,ROWS)
+		      var ixm = reduce(ii+COLS/2-1,COLS)
+		      var jxm = reduce(jj+ROWS/2-1,ROWS)		      
+		      
+		      gl.uniformMatrix4fv(colorMatUniformLocation, false,
+					  [cols[ixm][jxm], cols[ix0][jxm],  cols[ix][jxm], cols[ixp][jxm],
+					   cols[ixm][jx0],  cols[ix0][jx0],  cols[ix][jx0], cols[ixp][jx0],
+					   cols[ixm][jx],   cols[ix0][jx],   cols[ix][jx],  cols[ixp][jx],
+					   cols[ixm][jxp],  cols[ix0][jxp],  cols[ix][jxp], cols[ixp][jxp]])	       
+		      gl.uniform4f(baseUniformLocation, x1, y1, M,0); 
+		      gl.uniform1f(styleUniformLocation,style);
+		      gl.uniform1f(gridUniformLocation,gridflag);	       
+		      // Draw the rectangle.
+		      gl.drawArrays(gl.TRIANGLES, 0, 6);
+		  }
+	      }
+	      
+	      gl.uniform1f(timeUniformLocation,time);
+
+	      requestAnimationFrame(drawScene);
+	  }
+
+	  
+	  
+      }
+
+      //
+
+      // may not work well on phones:
+      //  https://stackoverflow.com/questions/28710100/some-android-devices-extremely-slow-when-rendering-canvas-elements
+      // this function is also taken from the webglfundamentals.org page
+      // written by Gregg Tavares; see above information 
+      function setRectangle(gl, x, y, width, height) {
+	  var x1 = x;
+	  var x2 = x + width;
+	  var y1 = y;
+	  var y2 = y + height;
+	  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+	      x1, y1,
+	      x2, y1,
+	      x1, y2,
+	      x1, y2,
+	      x2, y1,
+	      x2, y2]), gl.STATIC_DRAW);
+      }
+
+      main();
+
+
+      function filenm() {
+          var str= window.location.href;
+          var str2 = (str.split("/")[3]).split(".")[0] + ".png" ;        
+          return str2
+      }
+
+
+      var link = document.getElementById("link")  
+      link.addEventListener('click', function(ev) {
+	  link.href = canvas.toDataURL();
+	  link.download = filenm();
+      }, false);
+
+
+      var hidden = 0;
+      function hide(){
+	  hidden = 1-hidden
+	  var widths = [90,9,10,100]
+	  var thingstohide = ["about","link","styleA","reload","version","grid"]
+	  var words = ["display: inline;","display: none;"]
+	  for (var i=0;i<thingstohide.length;i++){
+	      document.getElementById(thingstohide[i]).style = words[hidden]
+	  }
+	  document.getElementById("overlay1").style.width = widths[hidden] + "%"
+	  document.getElementById("mymenuicon").style.width = widths[hidden+2] + "%"
+      }
+      hide()
+
+      
+    </script>
+
+
+
+  </body>
+</html>
+
+
