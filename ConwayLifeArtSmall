@@ -166,8 +166,7 @@
 	  // above was bubble, can do rest here too
 	  //      console.log(name+val)
 	  if (name=="style"){style = val/10;}
-	  else {param = val/10}//{Math.min(val/10,99.9999)}
-	  
+	  else {param = val/10}
       }
     </script>	
 
@@ -177,9 +176,7 @@
       attribute vec2 a_position;
       uniform vec2 u_resolution;
       void main() {
-	  //   gl_Position = vec4(a_position/u_resolution*u_resolution.x,0.,1.);
           gl_Position = vec4(a_position,0.,1.);
-	  // gl_Position = vec4(a_position/2. + vec2(0.1,-0.25),0.,1.);            
       }
 
     </script>
@@ -195,10 +192,7 @@
       uniform vec4 u_basepoint;
       float u_live = 0.55;
       
-
-
       float PI = 3.14159;
-
 
       float lam1 = 170.*pow(1.5/6.,0.5);
       float lam2 = 170.*pow(1.5/2.,0.5);
@@ -336,9 +330,7 @@
 	  else if (p.y >= 0.5 + (1.-cc.x)*de/2. &&	       
 		   p.y > p.x ){dc = (u4 + 1. - p.y)*cc.x; side = 0.;}
 	  else if (p.x >= 0.5 + (1.-cc.x)*de/2. &&	       
-		   p.y < p.x ){dc = (u4 + 1. - p.x)*cc.x; side = 0.;}
-
-	  
+		   p.y < p.x ){dc = (u4 + 1. - p.x)*cc.x; side = 0.;}	  
 	  return vec4(dc,face,mid);
       }
       
@@ -366,7 +358,6 @@
 
       vec3 style74(vec2 loc, float option){
 	  vec3 destColor;
-
 	  float l0 = length(loc)/u_colorMat[1][1];
 	  float M = u_basepoint.z;
 	  float ll=1000.;
@@ -403,14 +394,12 @@
 	      destColor =max(1.-vec3(ll)/2.,0.)*		  
 		  nicecol(randomC(F)/10.)/1.5;
 	  }
-
 	  return destColor;
       }
 
       vec3 col1(vec2 loc){
-	  return max(vec3(0.),vec3(1.-1.75*length(loc-0.5)/(0.01+u_color.x)));      
+	  return max(vec3(0.),vec3(1.-1.75*length(loc-0.5)/(0.01+u_color.x)));
       }
-
 
       vec3 col8(vec2 loc){
 	  return vec3(zig2(mix(loc,u_color)*2.,1.),0.,0.);
@@ -419,7 +408,6 @@
       vec3 col13(vec2 loc,vec2 p){
 	  return vec3(zigv(p*10.+ mix(loc,u_color),1.),1.);
       }
-
 
       vec3 colourchoice(float fu, vec2 loc, vec2 p){
 	  return
@@ -451,10 +439,6 @@
 	  destColor =
 	      destColor*(1.-u_grid) +
 	      (destColor*grid+(1.-grid)*vec3(1.,0.,0.))*u_grid;
-	  
-
-
-	  
 	  gl_FragColor =vec4(destColor, 1.);          
       }
 
@@ -512,6 +496,22 @@
 	  }
 	  return false;
       }
+
+      // this function is also taken from the webglfundamentals.org page
+      // written by Gregg Tavares; see above information 
+      function setRectangle(gl, x, y, width, height) {
+	  var x1 = x;
+	  var x2 = x + width;
+	  var y1 = y;
+	  var y2 = y + height;
+	  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+	      x1, y1,
+	      x2, y1,
+	      x1, y2,
+	      x1, y2,
+	      x2, y1,
+	      x2, y2]), gl.STATIC_DRAW);
+      }      
     </script>
 
     <script>
@@ -548,8 +548,6 @@
       var ROWS=2*Math.ceil(ROWS/2)// make M even
       canvas.height =600/COLS*ROWS;// 600;  
 
-      //  console.log(w,h,ROWS,COLS)
-
       function createShader(gl, type, source) {
 	  var shader = gl.createShader(type);
 	  gl.shaderSource(shader, source);
@@ -558,8 +556,6 @@
 	  if (success) {
 	      return shader;
 	  }
-
-	  //  console.log(gl.getShaderInfoLog(shader));
 	  gl.deleteShader(shader);
       }
 
@@ -572,14 +568,12 @@
 	  var success = gl.getProgramParameter(program, gl.LINK_STATUS);
 	  if (success) {
 	      return program;  }
-	  //  console.log(gl.getProgramInfoLog(program));
 	  gl.deleteProgram(program);
       }
 
       // lets make this a 20x20 array:
       var cols = new Array;
       function restart(){
-	  //      console.log("here")
 	  cols = new Array;
 	  for (var i=0;i<COLS;i++){
 	      var temp = new Array	
@@ -604,11 +598,9 @@
 	  }
 	  colsIntermediate.push(temp)
       }
-      // different copy for working with;
-      // dont think we actually really need it the same to start with.
 
       var gl = canvas.getContext("webgl", {preserveDrawingBuffer: true});
-      var timeUniformLocation;// = gl.getUniformLocation(program, "t");
+      var timeUniformLocation;
       
       var vertexShaderSource = document.querySelector("#vertex-shader-2d").text;
       var fragmentShaderSource = document.querySelector("#fragment-shader-2d").text;
@@ -628,28 +620,15 @@
 
       // Create a buffer and put three 2d clip space points in it
       var positionBuffer = gl.createBuffer();
-      // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
       // code above this line is initialization code.      
-      // I took the above and made it global from original copied file
-      // code below this line is rendering code.
       resizeCanvasToDisplaySize(gl.canvas);
-
-      // Tell WebGL how to convert from clip space to pixels
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-
-      // Clear the canvas
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-
-      // Tell it to use our program (pair of shaders)
       gl.useProgram(program);
-
-      // Turn on the attribute
       gl.enableVertexAttribArray(positionAttributeLocation);
-
-      // Bind the position buffer.
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
       // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
@@ -660,15 +639,10 @@
       var offset = 0;        // start at the beginning of the buffer
       gl.vertexAttribPointer(
 	  positionAttributeLocation, size, type, normalize, stride, offset);
-
-      // note, have to have the use program bit before this
       // set the resolution
       gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
 
-
       // look at the neighbours of (i,j) in cols
-      // if two or more are alive, take the average of the highest 3
-      // 
       function checklive(i,j){
 	  //      var live = 0.9;
           var live = param/100;
@@ -714,7 +688,6 @@
 		      if (jx<0){jx=ROWS-1}	      
                       if ( !(i==ix && j==jx) && cols[ix][jx]>live){
 			  ne +=1;
-			  //		      av +=cols[ix][jx]		  
 		      }
 		  }
 	      }
@@ -750,8 +723,6 @@
 	  var M = 0.1;// COLS/2./10.
 	  // variable for conway:
 	  var live = 0.5;
-	  // changed from time to requestAnimationFrame
-	  // for better working on mobile devices
 	  requestAnimationFrame(drawScene);
 	  var time = 1;
 	  
@@ -821,41 +792,16 @@
 	      gl.uniform1f(timeUniformLocation,time);
 
 	      requestAnimationFrame(drawScene);
-	  }
-
-	  
-	  
-      }
-
-      //
-
-      // may not work well on phones:
-      //  https://stackoverflow.com/questions/28710100/some-android-devices-extremely-slow-when-rendering-canvas-elements
-      // this function is also taken from the webglfundamentals.org page
-      // written by Gregg Tavares; see above information 
-      function setRectangle(gl, x, y, width, height) {
-	  var x1 = x;
-	  var x2 = x + width;
-	  var y1 = y;
-	  var y2 = y + height;
-	  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-	      x1, y1,
-	      x2, y1,
-	      x1, y2,
-	      x1, y2,
-	      x2, y1,
-	      x2, y2]), gl.STATIC_DRAW);
+	  }	  	  
       }
 
       main();
-
 
       function filenm() {
           var str= window.location.href;
           var str2 = (str.split("/")[3]).split(".")[0] + ".png" ;        
           return str2
       }
-
 
       var link = document.getElementById("link")  
       link.addEventListener('click', function(ev) {
@@ -880,8 +826,6 @@
 
       
     </script>
-
-
 
   </body>
 </html>
